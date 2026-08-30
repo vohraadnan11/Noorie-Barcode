@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Counter Ledger — Customer Loyalty Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#1F3A34;
+    --ink-deep:#152722;
+    --paper:#F6F2E9;
+    --paper-line:#DCD4C0;
+    --text:#2B2620;
+    --text-soft:#6B6455;
+    --gold:#C99A3E;
+    --gold-deep:#A87F2C;
+    --sage:#8FA69B;
+    --danger:#B4543A;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(201,154,62,0.08), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(143,166,155,0.10), transparent 45%);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:32px 16px 64px;
+    display:flex;
+    justify-content:center;
+  }
+  .app{ width:100%; max-width:440px; }
+
+  header.top{
+    text-align:center;
+    margin-bottom:24px;
+    color:var(--paper);
+  }
+  header.top .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:6px;
+  }
+  header.top h1{
+    font-family:'Zilla Slab', serif;
+    font-weight:700;
+    font-size:28px;
+    margin:0;
+    letter-spacing:0.01em;
+  }
+  header.top p{
+    font-size:13px;
+    color:var(--sage);
+    margin:6px 0 0;
+  }
+
+  .card{
+    background:var(--paper);
+    border-radius:var(--radius);
+    padding:20px;
+    box-shadow:0 18px 40px rgba(0,0,0,0.28);
+    margin-bottom:16px;
+  }
+
+  /* Scan panel */
+  .scan-card{
+    border:1.5px dashed var(--paper-line);
+  }
+  .scan-card h2{
+    font-family:'Zilla Slab', serif;
+    font-size:16px;
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .scan-card h2 .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--gold);
+    display:inline-block;
+  }
+  #reader{
+    width:100%;
+    border-radius:8px;
+    overflow:hidden;
+    background:#000;
+    display:none;
+  }
+  #reader.active{ display:block; margin-bottom:12px; }
+
+  .btn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border:none;
+    border-radius:8px;
+    padding:12px 16px;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{
+    background:var(--ink);
+    color:var(--paper);
+    width:100%;
+  }
+  .btn-primary:hover{ background:var(--ink-deep); }
+  .btn-gold{
+    background:var(--gold);
+    color:var(--ink-deep);
+    width:100%;
+  }
+  .btn-gold:hover{ background:var(--gold-deep); }
+  .btn-ghost{
+    background:transparent;
+    color:var(--text-soft);
+    border:1px solid var(--paper-line);
+    width:100%;
+  }
+
+  .manual-row{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .manual-row input{
+    flex:1;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    color:var(--text);
+  }
+  .manual-row input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  .manual-row button{
+    padding:10px 14px;
+  }
+
+  .demo-codes{
+    margin-top:12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--text-soft);
+    line-height:1.6;
+  }
+  .demo-codes span{
+    display:inline-block;
+    background:#fff;
+    border:1px solid var(--paper-line);
+    border-radius:5px;
+    padding:2px 7px;
+    margin-right:4px;
+    cursor:pointer;
+  }
+  .demo-codes span:hover{ border-color:var(--gold); color:var(--gold-deep); }
+
+  /* Customer / receipt card */
+  .receipt{ display:none; }
+  .receipt.active{ display:block; }
+
+  .cust-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom:1.5px dashed var(--paper-line);
+    padding-bottom:14px;
+    margin-bottom:14px;
+  }
+  .cust-head h2{
+    font-family:'Zilla Slab', serif;
+    font-size:20px;
+    margin:0 0 2px;
+  }
+  .cust-head .code{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--text-soft);
+  }
+  .points-pill{
+    background:var(--ink);
+    color:var(--gold);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    font-weight:600;
+    padding:6px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+
+  .hist-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-soft);
+    margin-bottom:8px;
+  }
+  .ledger-line{
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+    padding:6px 0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+  }
+  .ledger-line .date{ color:var(--text-soft); flex-shrink:0; }
+  .ledger-line .fill{
+    flex:1;
+    border-bottom:1px dotted var(--paper-line);
+    transform:translateY(-3px);
+  }
+  .ledger-line .amt{ font-weight:600; flex-shrink:0; }
+  .ledger-line.new .amt{ color:var(--gold-deep); }
+  .empty-hist{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--text-soft);
+    padding:8px 0;
+  }
+
+  .reward-note{
+    margin-top:14px;
+    background:#fff;
+    border:1px solid var(--paper-line);
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:12.5px;
+    color:var(--text-soft);
+  }
+  .reward-note strong{ color:var(--text); }
+
+  /* Add purchase */
+  .add-form{
+    margin-top:16px;
+    border-top:1.5px dashed var(--paper-line);
+    padding-top:14px;
+  }
+  .add-form h3{
+    font-family:'Zilla Slab', serif;
+    font-size:15px;
+    margin:0 0 10px;
+  }
+  .add-form label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-soft);
+    margin-bottom:5px;
+  }
+  .amt-row{
+    display:flex;
+    gap:8px;
+  }
+  .amt-row input{
+    flex:1;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:16px;
+    padding:11px 12px;
+    border-radius:8px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+  }
+  .amt-row input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  .amt-row button{ flex-shrink:0; padding:0 18px; }
+
+  .toast{
+    display:none;
+    margin-top:10px;
+    background:var(--sage);
+    color:var(--ink-deep);
+    font-size:12.5px;
+    font-weight:600;
+    padding:8px 12px;
+    border-radius:6px;
+  }
+  .toast.show{ display:block; }
+
+  .switch-btn{
+    display:block;
+    text-align:center;
+    margin-top:6px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--sage);
+    background:none;
+    border:none;
+    cursor:pointer;
+    text-decoration:underline;
+  }
+
+  footer.disclaim{
+    text-align:center;
+    color:var(--sage);
+    font-size:11px;
+    font-family:'IBM Plex Mono', monospace;
+    margin-top:20px;
+    line-height:1.6;
+    opacity:0.8;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .btn{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="top">
+    <div class="eyebrow">Shop Counter Demo</div>
+    <h1>Counter Ledger</h1>
+    <p>Scan a customer to pull up their history</p>
+  </header>
+
+  <!-- SCAN PANEL -->
+  <div class="card scan-card" id="scanCard">
+    <h2><span class="dot"></span> Scan customer</h2>
+    <div id="reader"></div>
+    <button class="btn btn-primary" id="startScanBtn">Start camera scan</button>
+
+    <div class="manual-row">
+      <input type="text" id="manualCode" placeholder="or type code, e.g. 1001" />
+      <button class="btn btn-gold" id="manualLookupBtn">Look up</button>
+    </div>
+
+    <div class="demo-codes">
+      Demo codes — tap to try:
+      <span data-code="1001">1001</span>
+      <span data-code="1002">1002</span>
+      <span data-code="1003">1003</span>
+      <span data-code="9999">9999 (new)</span>
+    </div>
+  </div>
+
+  <!-- RECEIPT / CUSTOMER PANEL -->
+  <div class="card receipt" id="receiptCard">
+    <div class="cust-head">
+      <div>
+        <h2 id="custName">—</h2>
+        <div class="code" id="custCode">CODE —</div>
+      </div>
+      <div class="points-pill" id="custPoints">0 pts</div>
+    </div>
+
+    <div class="hist-label">Purchase history</div>
+    <div id="historyList"></div>
+
+    <div class="reward-note" id="rewardNote"></div>
+
+    <div class="add-form">
+      <h3>Add today's purchase</h3>
+      <label for="newAmt">Amount (₹)</label>
+      <div class="amt-row">
+        <input type="number" id="newAmt" placeholder="0" min="0" step="1" />
+        <button class="btn btn-gold" id="addPurchaseBtn">Add</button>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <button class="switch-btn" id="scanAnotherBtn">← Scan a different customer</button>
+  </div>
+
+  <footer class="disclaim">
+    Demo only — data resets on page reload.<br>
+    Points: ₹100 spent = 1 point. Reward unlocks at 20 points.
+  </footer>
+
+</div>
+
+<script>
+  // ---- Mock customer database (in-memory only, resets on refresh) ----
+  const customers = {
+    "1001": {
+      name: "Ramesh Patel",
+      history: [
+        { date: "2026-08-02", amount: 1200 },
+        { date: "2026-08-15", amount: 850 },
+        { date: "2026-08-24", amount: 2100 }
+      ]
+    },
+    "1002": {
+      name: "Fatima Sheikh",
+      history: [
+        { date: "2026-07-19", amount: 450 },
+        { date: "2026-08-10", amount: 600 }
+      ]
+    },
+    "1003": {
+      name: "Devendra Rao",
+      history: [
+        { date: "2026-06-28", amount: 3200 }
+      ]
+    }
+  };
+
+  const POINTS_PER_100 = 1;
+  const REWARD_THRESHOLD = 20;
+
+  let currentCode = null;
+
+  const scanCard = document.getElementById('scanCard');
+  const receiptCard = document.getElementById('receiptCard');
+  const readerEl = document.getElementById('reader');
+  const startScanBtn = document.getElementById('startScanBtn');
+  const manualCode = document.getElementById('manualCode');
+  const manualLookupBtn = document.getElementById('manualLookupBtn');
+  const scanAnotherBtn = document.getElementById('scanAnotherBtn');
+  const addPurchaseBtn = document.getElementById('addPurchaseBtn');
+  const newAmt = document.getElementById('newAmt');
+  const toast = document.getElementById('toast');
+
+  let html5QrCode = null;
+  let scanning = false;
+
+  function calcPoints(history){
+    const total = history.reduce((sum, p) => sum + p.amount, 0);
+    return Math.floor(total / 100) * POINTS_PER_100;
+  }
+
+  function fmtDate(d){
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  function fmtAmt(n){
+    return "₹" + n.toLocaleString('en-IN');
+  }
+
+  function renderCustomer(code){
+    const cust = customers[code];
+    document.getElementById('custName').textContent = cust.name;
+    document.getElementById('custCode').textContent = "CODE " + code;
+
+    const points = calcPoints(cust.history);
+    document.getElementById('custPoints').textContent = points + " pts";
+
+    const listEl = document.getElementById('historyList');
+    listEl.innerHTML = "";
+    if(cust.history.length === 0){
+      listEl.innerHTML = '<div class="empty-hist">No purchases yet — this will be their first.</div>';
+    } else {
+      [...cust.history].reverse().forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = "ledger-line" + (p._new ? " new" : "");
+        row.innerHTML = `<span class="date">${fmtDate(p.date)}</span><span class="fill"></span><span class="amt">${fmtAmt(p.amount)}</span>`;
+        listEl.appendChild(row);
+      });
+    }
+
+    const remaining = REWARD_THRESHOLD - (points % REWARD_THRESHOLD || REWARD_THRESHOLD);
+    const noteEl = document.getElementById('rewardNote');
+    if(points >= REWARD_THRESHOLD && points % REWARD_THRESHOLD < POINTS_PER_100 * 5){
+      noteEl.innerHTML = `<strong>Reward ready.</strong> ${cust.name.split(' ')[0]} has ${points} points — eligible to redeem.`;
+    } else {
+      const toGo = REWARD_THRESHOLD - (points % REWARD_THRESHOLD);
+      noteEl.innerHTML = `<strong>${toGo} points to next reward.</strong> Reward unlocks every ${REWARD_THRESHOLD} points.`;
+    }
+  }
+
+  function showCustomer(code){
+    if(!customers[code]){
+      customers[code] = { name: "New Customer — " + code, history: [] };
+    }
+    currentCode = code;
+    renderCustomer(code);
+    scanCard.style.display = "none";
+    receiptCard.classList.add('active');
+    toast.classList.remove('show');
+    newAmt.value = "";
+    stopScanning();
+  }
+
+  function backToScan(){
+    receiptCard.classList.remove('active');
+    scanCard.style.display = "block";
+    manualCode.value = "";
+    currentCode = null;
+  }
+
+  // Manual lookup
+  manualLookupBtn.addEventListener('click', () => {
+    const code = manualCode.value.trim();
+    if(code) showCustomer(code);
+  });
+  manualCode.addEventListener('keydown', (e) => {
+    if(e.key === "Enter"){ manualLookupBtn.click(); }
+  });
+
+  // Demo code chips
+  document.querySelectorAll('.demo-codes span').forEach(chip => {
+    chip.addEventListener('click', () => showCustomer(chip.dataset.code));
+  });
+
+  // Add purchase
+  addPurchaseBtn.addEventListener('click', () => {
+    const amt = parseFloat(newAmt.value);
+    if(!amt || amt <= 0){
+      toast.textContent = "Enter a valid amount first.";
+      toast.classList.add('show');
+      return;
+    }
+    const today = new Date().toISOString().slice(0,10);
+    customers[currentCode].history.push({ date: today, amount: amt, _new: true });
+    renderCustomer(currentCode);
+    newAmt.value = "";
+    toast.textContent = "Purchase added — points updated.";
+    toast.classList.add('show');
+  });
+
+  scanAnotherBtn.addEventListener('click', backToScan);
+
+  // Camera scanning (html5-qrcode)
+  startScanBtn.addEventListener('click', () => {
+    if(scanning){ stopScanning(); return; }
+    readerEl.classList.add('active');
+    startScanBtn.textContent = "Stop camera";
+    html5QrCode = new Html5Qrcode("reader");
+    scanning = true;
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      (decodedText) => {
+        showCustomer(decodedText.trim());
+      },
+      () => {}
+    ).catch((err) => {
+      toast.textContent = "Camera unavailable — use manual code entry instead.";
+      toast.classList.add('show');
+      stopScanning();
+    });
+  });
+
+  function stopScanning(){
+    if(html5QrCode && scanning){
+      html5QrCode.stop().then(() => {
+        html5QrCode.clear();
+      }).catch(()=>{});
+    }
+    scanning = false;
+    readerEl.classList.remove('active');
+    startScanBtn.textContent = "Start camera scan";
+  }
+</script>
+
+</body>
+</html>
